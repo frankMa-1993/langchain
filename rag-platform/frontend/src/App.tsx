@@ -8,6 +8,7 @@ import { getApiKey, setApiKey } from "./api";
 
 const { Header, Content } = Layout;
 
+/** 顶栏主导航：根据路径高亮「知识库」或「对话」 */
 function AppMenu() {
   const loc = useLocation();
   const selected = loc.pathname.startsWith("/chat") ? ["chat"] : ["home"];
@@ -25,6 +26,7 @@ function AppMenu() {
   );
 }
 
+/** 应用壳：布局、API Key、页面路由 */
 export default function App() {
   const [keyInput, setKeyInput] = useState(getApiKey() || "");
 

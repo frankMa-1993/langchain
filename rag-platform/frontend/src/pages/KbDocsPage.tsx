@@ -13,6 +13,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError, apiJson, apiUpload, type Doc, type Task } from "../api";
 
+/** 指定知识库下的文档：上传、列表轮询处理中状态、删除与重索引 */
 export default function KbDocsPage() {
   const { kbId } = useParams();
   const [docs, setDocs] = useState<Doc[]>([]);
@@ -36,6 +37,7 @@ export default function KbDocsPage() {
     void load();
   }, [load]);
 
+  // 存在处理中文档时定时刷新列表，直到状态变为终态
   useEffect(() => {
     const t = setInterval(() => {
       if (docs.some((d) => d.status === "pending" || d.status === "processing")) void load();

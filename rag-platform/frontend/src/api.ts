@@ -1,14 +1,18 @@
+/** 与后端约定的 REST 前缀；开发环境由 Vite 代理到后端 */
 const API_BASE = "/api/v1";
 
+/** 从本地存储读取可选的 X-API-Key */
 export function getApiKey(): string | null {
   return localStorage.getItem("rag_api_key");
 }
 
+/** 持久化或清除 API Key，供需要鉴权的后端使用 */
 export function setApiKey(key: string | null) {
   if (key) localStorage.setItem("rag_api_key", key);
   else localStorage.removeItem("rag_api_key");
 }
 
+/** 组装请求头：JSON Content-Type 与可选的 X-API-Key */
 function headers(json = true): HeadersInit {
   const h: Record<string, string> = {};
   if (json) h["Content-Type"] = "application/json";
@@ -17,6 +21,7 @@ function headers(json = true): HeadersInit {
   return h;
 }
 
+/** 后端错误响应的统一结构，便于页面展示 message / requestId */
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -47,6 +52,7 @@ async function parseError(res: Response): Promise<ApiError> {
   );
 }
 
+/** 通用 JSON 请求；非 2xx 时抛出 ApiError */
 export async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -57,6 +63,7 @@ export async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** multipart 上传文档；不设置 Content-Type，由浏览器自动带 boundary */
 export async function apiUpload(
   path: string,
   file: File
@@ -114,6 +121,10 @@ export type ChatEvent =
   | { type: "done"; done: boolean }
   | { type: "error"; message: string };
 
+/**
+ * 对话流式接口：读取 SSE 风格响应，按 `data: {...}` 解析为 ChatEvent 回调。
+ * 支持 AbortSignal 中止请求。
+ */
 export async function streamChat(
   conversationId: string,
   content: string,

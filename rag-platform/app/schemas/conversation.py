@@ -44,3 +44,7 @@ class StreamChatRequest(BaseModel):
     content: str = Field(min_length=1, max_length=32000)
     hybrid: bool = True
     top_k: int | None = Field(default=None, ge=1, le=30)
+
+
+class BatchDeleteRequest(BaseModel):
+    ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
