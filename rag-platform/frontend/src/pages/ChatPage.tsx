@@ -333,8 +333,14 @@ export default function ChatPage() {
       <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: 16 }}>
         <Card size="small" style={{ marginBottom: 12 }}>
           <Space wrap>
-            <span>混合检索（语义+BM25）</span>
+            <span>
+              混合检索（语义+BM25）
+              <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
+                提高召回和相关性，能用语义/关键词混合查找答案
+              </Typography.Text>
+            </span>
             <Switch checked={hybrid} onChange={setHybrid} />
+       
           </Space>
         </Card>
         <div style={{ flex: 1, overflow: "auto", marginBottom: 12 }}>
