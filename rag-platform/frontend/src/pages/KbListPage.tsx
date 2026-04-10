@@ -1,8 +1,9 @@
-import { Button, Card, Form, Input, Modal, Space, Table, Typography, message } from "antd";
+import { Button, Card, Form, Input, Modal, Popconfirm, Space, Table, Typography, message } from "antd";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ApiError, apiJson, type KB } from "../api";
 
+/** 首页：知识库列表与新建，入口跳转文档页 / 对话页 */
 export default function KbListPage() {
   const [rows, setRows] = useState<KB[]>([]);
   const [total, setTotal] = useState(0);
@@ -42,6 +43,17 @@ export default function KbListPage() {
     }
   };
 
+  const removeKb = async (id: string) => {
+    try {
+      await apiJson(`/knowledge-bases/${id}`, { method: "DELETE" });
+      message.success("知识库已删除");
+      await load();
+    } catch (e) {
+      if (e instanceof ApiError) message.error(e.message);
+      else message.error("删除失败");
+    }
+  };
+
   return (
     <div style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
       <Space style={{ marginBottom: 16, width: "100%", justifyContent: "space-between" }}>
@@ -68,6 +80,18 @@ export default function KbListPage() {
                 <Space>
                   <Link to={`/kb/${r.id}`}>文档</Link>
                   <Link to={`/chat?kb=${r.id}`}>对话</Link>
+                  <Popconfirm
+                    title="确定删除此知识库？"
+                    description="删除后将无法恢复，关联的文档和会话也将被删除。"
+                    onConfirm={() => void removeKb(r.id)}
+                    okText="删除"
+                    okButtonProps={{ danger: true }}
+                    cancelText="取消"
+                  >
+                    <Button size="small" danger>
+                      删除
+                    </Button>
+                  </Popconfirm>
                 </Space>
               ),
             },

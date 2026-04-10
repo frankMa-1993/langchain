@@ -9,6 +9,7 @@ from app.core.errors import ErrorCode
 from app.models.orm import Conversation, Message
 from app.schemas.common import Paginated
 from app.schemas.conversation import (
+    BatchDeleteRequest,
     ConversationCreate,
     ConversationOut,
     MessageCreate,
@@ -143,3 +144,33 @@ async def chat_stream(
             stream_db.close()
 
     return StreamingResponse(event_gen(), media_type="text/event-stream")
+
+
+@router.delete("/{conversation_id}", status_code=204)
+def delete_conversation(
+    conversation_id: uuid.UUID,
+    db: DbSession,
+) -> None:
+    """Delete a single conversation and its associated messages (cascade)."""
+    conv = db.get(Conversation, conversation_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail={"code": ErrorCode.NOT_FOUND, "message": "Conversation not found", "detail": {}})
+    db.delete(conv)
+    db.commit()
+
+
+@router.post("/batch-delete", status_code=204)
+def batch_delete_conversations(
+    body: BatchDeleteRequest,
+    db: DbSession,
+) -> None:
+    """Delete multiple conversations and their associated messages (cascade)."""
+    if not body.ids:
+        return
+    # Query all conversations that exist
+    convs = db.query(Conversation).filter(Conversation.id.in_(body.ids)).all()
+    existing_ids = {c.id for c in convs}
+    # If some IDs don't exist, still delete the existing ones (idempotent)
+    for conv in convs:
+        db.delete(conv)
+    db.commit()

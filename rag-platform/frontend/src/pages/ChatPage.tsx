@@ -1,10 +1,12 @@
 import {
   Button,
   Card,
+  Checkbox,
   Collapse,
   Empty,
   Input,
   List,
+  Modal,
   Select,
   Space,
   Switch,
@@ -15,8 +17,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ApiError, apiJson, streamChat, type Conversation, type KB, type MessageOut, type Source } from "../api";
 
+/** 界面展示用的消息结构（含流式累积内容与引用来源） */
 type Msg = { role: "user" | "assistant"; content: string; sources?: Source[] };
 
+/** RAG 对话：选库、会话列表、历史消息、SSE 流式回复与混合检索开关 */
 export default function ChatPage() {
   const [params] = useSearchParams();
   const kbFromUrl = params.get("kb");
@@ -30,6 +34,10 @@ export default function ChatPage() {
   const [hybrid, setHybrid] = useState(true);
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Batch delete states
+  const [batchMode, setBatchMode] = useState(false);
+  const [selectedConvIds, setSelectedConvIds] = useState<string[]>([]);
 
   const loadKbs = useCallback(async () => {
     try {
@@ -102,6 +110,70 @@ export default function ChatPage() {
     }
   };
 
+  const removeConv = async (id: string) => {
+    try {
+      await apiJson(`/conversations/${id}`, { method: "DELETE" });
+      message.success("会话已删除");
+      if (convId === id) {
+        setConvId(undefined);
+        setMsgs([]);
+      }
+      await loadConvs();
+    } catch (e) {
+      if (e instanceof ApiError) message.error(e.message);
+      else message.error("删除失败");
+    }
+  };
+
+  const batchRemove = async () => {
+    if (selectedConvIds.length === 0) return;
+    Modal.confirm({
+      title: "确认批量删除",
+      content: `确定要删除选中的 ${selectedConvIds.length} 个会话吗？此操作无法恢复。`,
+      okText: "删除",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: async () => {
+        try {
+          await apiJson("/conversations/batch-delete", {
+            method: "POST",
+            body: JSON.stringify({ ids: selectedConvIds }),
+          });
+          message.success(`已删除 ${selectedConvIds.length} 个会话`);
+          if (convId && selectedConvIds.includes(convId)) {
+            setConvId(undefined);
+            setMsgs([]);
+          }
+          setSelectedConvIds([]);
+          setBatchMode(false);
+          await loadConvs();
+        } catch (e) {
+          if (e instanceof ApiError) message.error(e.message);
+          else message.error("批量删除失败");
+        }
+      },
+    });
+  };
+
+  const toggleConvSelection = (id: string) => {
+    setSelectedConvIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const selectAllConvs = () => {
+    setSelectedConvIds(convs.map((c) => c.id));
+  };
+
+  const clearSelection = () => {
+    setSelectedConvIds([]);
+  };
+
+  const exitBatchMode = () => {
+    setBatchMode(false);
+    setSelectedConvIds([]);
+  };
+
   const send = async () => {
     const text = input.trim();
     if (!text || !convId) {
@@ -122,6 +194,7 @@ export default function ChatPage() {
         hybrid,
         (ev) => {
           if (ev.type === "sources") sources = ev.sources;
+          // 将增量文本拼到最后一条 assistant 消息上，实现打字机效果
           if (ev.type === "delta") {
             acc += ev.delta;
             setMsgs((m) => {
@@ -153,7 +226,7 @@ export default function ChatPage() {
 
   return (
     <div style={{ display: "flex", height: "100%", minHeight: 520 }}>
-      <div style={{ width: 280, borderRight: "1px solid #f0f0f0", padding: 12, overflow: "auto" }}>
+      <div style={{ width: 280, borderRight: "1px solid #f0f0f0", padding: 12, overflow: "auto", display: "flex", flexDirection: "column" }}>
         <Space direction="vertical" style={{ width: "100%" }} size="middle">
           <Typography.Text type="secondary">知识库</Typography.Text>
           <Select
@@ -166,32 +239,108 @@ export default function ChatPage() {
             }}
             placeholder="选择知识库"
           />
-          <Button type="primary" block onClick={() => void newChat()} disabled={!kbId}>
+          <Button type="primary" block onClick={() => void newChat()} disabled={!kbId || batchMode}>
             新会话
           </Button>
+          {!batchMode ? (
+            <Button block onClick={() => setBatchMode(true)} disabled={!kbId || convs.length === 0}>
+              批量管理
+            </Button>
+          ) : null}
           <Typography.Text type="secondary">历史会话</Typography.Text>
           <List
             size="small"
             dataSource={convs}
             locale={{ emptyText: "暂无" }}
+            style={{ flex: 1, overflow: "auto" }}
             renderItem={(c) => (
               <List.Item
-                style={{ cursor: "pointer", background: convId === c.id ? "#e6f4ff" : undefined }}
-                onClick={() => setConvId(c.id)}
+                style={{
+                  cursor: batchMode ? "default" : "pointer",
+                  background: convId === c.id ? "#e6f4ff" : undefined,
+                  paddingLeft: batchMode ? 8 : 12,
+                }}
+                onClick={() => {
+                  if (!batchMode) setConvId(c.id);
+                }}
               >
-                <Typography.Text ellipsis title={c.title || c.id}>
-                  {c.title || c.id.slice(0, 8)}
-                </Typography.Text>
+                <Space style={{ width: "100%" }}>
+                  {batchMode && (
+                    <Checkbox
+                      checked={selectedConvIds.includes(c.id)}
+                      onChange={() => toggleConvSelection(c.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  )}
+                  <Typography.Text ellipsis title={c.title || c.id} style={{ flex: 1 }}>
+                    {c.title || c.id.slice(0, 8)}
+                  </Typography.Text>
+                  {!batchMode && (
+                    <Button
+                      size="small"
+                      danger
+                      type="text"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        Modal.confirm({
+                          title: "确认删除",
+                          content: `确定要删除会话 "${c.title || c.id.slice(0, 8)}" 吗？`,
+                          okText: "删除",
+                          okButtonProps: { danger: true },
+                          cancelText: "取消",
+                          onOk: () => removeConv(c.id),
+                        });
+                      }}
+                    >
+                      删除
+                    </Button>
+                  )}
+                </Space>
               </List.Item>
             )}
           />
         </Space>
+        {batchMode && (
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #f0f0f0" }}>
+            <Space direction="vertical" style={{ width: "100%" }}>
+              <Space>
+                <Checkbox
+                  indeterminate={selectedConvIds.length > 0 && selectedConvIds.length < convs.length}
+                  checked={selectedConvIds.length === convs.length && convs.length > 0}
+                  onChange={(e) => (e.target.checked ? selectAllConvs() : clearSelection())}
+                >
+                  全选 ({selectedConvIds.length}/{convs.length})
+                </Checkbox>
+              </Space>
+              <Space style={{ width: "100%", justifyContent: "space-between" }}>
+                <Button size="small" onClick={exitBatchMode}>
+                  取消
+                </Button>
+                <Button
+                  size="small"
+                  danger
+                  type="primary"
+                  disabled={selectedConvIds.length === 0}
+                  onClick={() => batchRemove()}
+                >
+                  删除选中
+                </Button>
+              </Space>
+            </Space>
+          </div>
+        )}
       </div>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: 16 }}>
         <Card size="small" style={{ marginBottom: 12 }}>
           <Space wrap>
-            <span>混合检索（语义+BM25）</span>
+            <span>
+              混合检索（语义+BM25）
+              <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
+                提高召回和相关性，能用语义/关键词混合查找答案
+              </Typography.Text>
+            </span>
             <Switch checked={hybrid} onChange={setHybrid} />
+       
           </Space>
         </Card>
         <div style={{ flex: 1, overflow: "auto", marginBottom: 12 }}>

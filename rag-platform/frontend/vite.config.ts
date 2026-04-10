@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    // 开发时将浏览器请求转发到本地后端，避免跨域
     proxy: {
       "/api": { target: "http://127.0.0.1:8000", changeOrigin: true },
       "/health": { target: "http://127.0.0.1:8000", changeOrigin: true },

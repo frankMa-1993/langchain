@@ -1,3 +1,4 @@
+/* 根节点占满视口高度，配合 Ant Design Layout 使用 */
 html,
 body,
 #root {
