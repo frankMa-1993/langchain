@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import json
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 from app.api.deps import DbSession, optional_api_key, rate_limit
 from app.database import SessionLocal
@@ -146,27 +148,28 @@ async def chat_stream(
     return StreamingResponse(event_gen(), media_type="text/event-stream")
 
 
-@router.delete("/{conversation_id}", status_code=204)
+@router.delete("/{conversation_id}", status_code=204, response_class=Response)
 def delete_conversation(
     conversation_id: uuid.UUID,
     db: DbSession,
-) -> None:
+) -> Response:
     """Delete a single conversation and its associated messages (cascade)."""
     conv = db.get(Conversation, conversation_id)
     if not conv:
         raise HTTPException(status_code=404, detail={"code": ErrorCode.NOT_FOUND, "message": "Conversation not found", "detail": {}})
     db.delete(conv)
     db.commit()
+    return Response(status_code=204)
 
 
-@router.post("/batch-delete", status_code=204)
+@router.post("/batch-delete", status_code=204, response_class=Response)
 def batch_delete_conversations(
     body: BatchDeleteRequest,
     db: DbSession,
-) -> None:
+) -> Response:
     """Delete multiple conversations and their associated messages (cascade)."""
     if not body.ids:
-        return
+        return Response(status_code=204)
     # Query all conversations that exist
     convs = db.query(Conversation).filter(Conversation.id.in_(body.ids)).all()
     existing_ids = {c.id for c in convs}
@@ -174,3 +177,4 @@ def batch_delete_conversations(
     for conv in convs:
         db.delete(conv)
     db.commit()
+    return Response(status_code=204)

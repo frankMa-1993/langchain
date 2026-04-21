@@ -2,6 +2,9 @@
   "name": "rag-frontend",
   "private": true,
   "version": "1.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,5 +23,8 @@
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "~5.7.2",
     "vite": "^6.0.6"
+  },
+  "volta": {
+    "node": "20.20.2"
   }
 }

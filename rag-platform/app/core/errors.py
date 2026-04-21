@@ -1,9 +1,9 @@
 """Business error codes for API responses."""
 
-from enum import StrEnum
+from enum import Enum
 
 
-class ErrorCode(StrEnum):
+class ErrorCode(str, Enum):
     VALIDATION_ERROR = "VALIDATION_ERROR"
     NOT_FOUND = "NOT_FOUND"
     CONFLICT = "CONFLICT"
