@@ -1,7 +1,7 @@
-/* 根节点占满视口高度，配合 Ant Design Layout 使用 */
+/* 根节点占满视口高度，配合 Ant Design Vue Layout 使用 */
 html,
 body,
-#root {
+#app {
   height: 100%;
   margin: 0;
 }

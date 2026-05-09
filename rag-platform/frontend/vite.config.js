@@ -1,11 +1,10 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import vue from "@vitejs/plugin-vue";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [vue()],
   server: {
     port: 5173,
-    // 开发时将浏览器请求转发到本地后端，避免跨域
     proxy: {
       "/api": { target: "http://127.0.0.1:8000", changeOrigin: true },
       "/health": { target: "http://127.0.0.1:8000", changeOrigin: true },
