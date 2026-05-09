@@ -42,6 +42,14 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+############################ 启动后端
+cd "/Users/mayongfeng/工作/code/langchain/rag-platform"
+source .venv/bin/activate    # 没有 .venv 时先：python3 -m venv .venv && pip install -r requirements.txt
+
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+#########################
 ```
 
 4. 打开：

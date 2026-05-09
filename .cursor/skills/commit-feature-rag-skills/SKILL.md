@@ -1,11 +1,3 @@
----
-name: commit-feature-rag-skills
-description: >-
-  Formats git commits for feature-rag work and Cursor skill/rule updates (RAG
-  platform, .cursor/skills, .cursor/rules). Use when the user asks for commit
-  messages, is on branch feature-rag, or changes RAG docs, skills, or rules.
----
-
 # feature-rag 与技能更新：提交规范
 
 ## 何时使用
